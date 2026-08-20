@@ -17,5 +17,5 @@ MathJax from jsDelivr.
 Suggested GitHub Pages source after review: publish this directory, or copy its
 contents to the branch/directory selected in the repository Pages settings.
 
-Deployment is a repository operation. Push only when explicitly intended, and
-check the `devel` GitHub Actions run after publishing documentation changes.
+Deployment is a repository operation. Push only when explicitly intended and
+verify the generated site locally before publishing.

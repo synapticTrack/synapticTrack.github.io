@@ -48,6 +48,54 @@
 <div class="page-tools"><a href="index.html">Docs home</a><span>Program Roadmap and Milestones</span></div>
 <h1 id="program-roadmap-and-milestones">Program Roadmap and
 Milestones</h1>
+<p><code>synapticTrack</code> develops reproducible beam-dynamics
+workflows for RAON LEBT and MEBT studies, followed by neural surrogate
+modeling and accelerator-control applications. The program is staged so
+that each modeling step is supported by validated simulation data,
+explicit beam-physics conventions, and reusable package APIs.</p>
+<h3 id="completed-foundations">Completed Foundations</h3>
+<ul>
+<li>LEBT and MEBT TRACK lattice workspaces, notebook workflows, and
+deterministic production configurations are established.</li>
+<li>LEBT no-offset Sobol sampling supports fixed-injection and
+fixed-current production datasets, with resumable HDF5 batches and
+validity metadata.</li>
+<li>Multi-target MLP and physics-regularized MLP workflows report
+diagnostic, component-wise beam-state, Courant-Snyder/emittance, and
+covariance-validity metrics.</li>
+<li>Dataset readers, training artifacts, lattice controls, and
+beam-state reports use versioned compatibility contracts.</li>
+</ul>
+<h3 id="current-focus">Current Focus</h3>
+<ul>
+<li>Generate staged MEBT Sobol datasets with the injected beam state,
+MEBT lattice-control manifest, and fixed-current TRACK
+configuration.</li>
+<li>Train and validate MEBT multi-output surrogate models using the same
+reproducibility, artifact, and physics-metric conventions as the LEBT
+workflow.</li>
+<li>Maintain publication-ready diagnostic and beam-state evaluation
+tables without treating mixed-unit aggregate RMSE as a physical
+acceptance metric.</li>
+</ul>
+<h3 id="planned-milestones">Planned Milestones</h3>
+<ol type="1">
+<li>Complete MEBT surrogate validation across staged sample counts and
+operating regions.</li>
+<li>Use validated surrogates for orbit-correction studies with bounded
+corrector actions and physically meaningful loss/termination
+conditions.</li>
+<li>Extend beam-state inference from diagnostic observations through
+frozen surrogates with covariance-validity checks.</li>
+<li>Compare surrogate-guided methods against high-fidelity TRACK
+simulations and develop higher-fidelity reconstruction methods as data
+and validation become available.</li>
+</ol>
+<h3 id="documentation-policy">Documentation Policy</h3>
+<p>Reusable implementation, dataset, and physics contracts are
+documented under <code>docs/</code>. The website publishes stable
+user-facing documentation and excludes internal development prompts and
+operating instructions.</p>
 
 </main>
 </div>
