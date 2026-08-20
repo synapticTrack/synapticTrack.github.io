@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="author" content="Chong Shik Park" />
+  <title>Analysis Methods and Analysis Procedure - synapticTrack</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" type="text/javascript"></script>
+</head>
+<body>
+<header class="site-header">
+  <div class="rtd-brand">
+    <img src="synaptictrack.svg" alt="synapticTrack logo" />
+    <div>
+      <h1>synapticTrack</h1>
+      <p>Project Documentation</p>
+    </div>
+  </div>
+  <label class="rtd-search" aria-label="Search documentation">
+    <span>Search docs</span>
+    <input type="search" placeholder="Search docs" disabled />
+  </label>
+  <div class="rtd-version">latest</div>
+  <div class="rtd-downloads">
+    <a href="synapticTrack_consolidated.pdf">PDF</a>
+    <a href="synapticTrack_consolidated.tex">LaTeX</a>
+  </div>
+  <p class="byline">Chong Shik Park<br />Department of Accelerator Science and Center for Accelerator Research, Korea University, Sejong, 30019 Republic of Korea</p>
+</header>
+<div class="layout">
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="index.html">synapticTrack Documentation</a></li>
+<li><a href="project-overview.html">Project Overview</a></li>
+<li><a href="program-roadmap-and-milestones.html">Program Roadmap and Milestones</a></li>
+<li><a href="input-parameters-output-storage-and-sampling-requirements.html">Input Parameters, Output Storage, and Sampling Requirements</a></li>
+<li><a href="physics-models-and-machine-conventions.html">Physics Models and Machine Conventions</a></li>
+<li><a href="simulation-code-structure-and-external-codes.html">Simulation Code Structure and External Codes</a></li>
+<li><a href="simulation-procedures-and-production-dataset-workflow.html">Simulation Procedures and Production Dataset Workflow</a></li>
+<li><a class="current" href="analysis-methods-and-analysis-procedure.html">Analysis Methods and Analysis Procedure</a></li>
+<li><a href="new-user-installation-and-local-operation.html">New User Installation and Local Operation</a></li>
+<li><a href="unclassified-markdown-sources.html">Unclassified Markdown Sources</a></li>
+<li><a href="references.html">References</a></li>
+</ul>
+</nav>
+<main>
+<div class="page-tools"><a href="index.html">Docs home</a><span>Analysis Methods and Analysis Procedure</span></div>
+<h1 id="analysis-methods-and-analysis-procedure">Analysis Methods and
+Analysis Procedure</h1>
+<h2 id="scanner-measurement-analysis">Scanner Measurement Analysis</h2>
+<p>This note documents how scanner measurement data is manipulated by
+the current analysis path in <code>synapticTrack</code>.</p>
+<p>Relevant files:</p>
+<ul>
+<li><code>src/synapticTrack/io/scanner_io.py</code></li>
+<li><code>src/synapticTrack/beam/beam_scanner.py</code></li>
+<li><code>src/synapticTrack/analysis/scanner_analysis.py</code></li>
+<li><code>src/synapticTrack/utils/stats.py</code></li>
+<li><code>src/synapticTrack/utils/math_functions.py</code></li>
+</ul>
+<h3 id="file-loading">File Loading</h3>
+<p>Scanner files are read with whitespace-separated columns and one
+skipped header row.</p>
+<p>Wire scanner files are read as:</p>
+<pre class="text"><code>x_pos x_current y_pos y_current d_pos d_current</code></pre>
+<p>The required analysis columns are:</p>
+<pre class="text"><code>x_pos, x_current, y_pos, y_current</code></pre>
+<p>Allison scanner files are read as:</p>
+<pre class="text"><code>x xp x_current hv y_current</code></pre>
+<p>The required analysis columns are:</p>
+<pre class="text"><code>x, xp, x_current</code></pre>
+<p>The file stem is stored as <code>scan_id</code>.</p>
+<h3 id="wire-scanner-manipulation">Wire Scanner Manipulation</h3>
+<p>Wire scanner analysis is implemented by
+<code>analyze_wire_scanner</code>.</p>
+<p>Each plane is processed independently:</p>
+<pre class="text"><code>x_pos, x_current
+y_pos, y_current</code></pre>
+<p>The preprocessing function is
+<code>_preprocess_profile(position, current, shift, cutoff, cutoff_frac)</code>.</p>
+<p>Processing steps:</p>
+<ol type="1">
+<li><p>Convert <code>position</code> and <code>current</code> to
+floating-point NumPy arrays.</p></li>
+<li><p>Require matching shapes.</p></li>
+<li><p>Remove all samples where either position or current is NaN or
+Inf.</p></li>
+<li><p>If <code>shift=True</code>, subtract the minimum current from the
+current profile:</p>
+<pre class="text"><code>current &lt;- current - min(current)</code></pre>
+<p>This is a baseline shift. It makes the smallest remaining current
+value zero.</p></li>
+<li><p>If <code>cutoff=True</code>, remove low-current samples after the
+optional shift:</p>
+<pre class="text"><code>threshold = cutoff_frac * max(current)
+keep current &gt;= threshold</code></pre></li>
+<li><p>Require at least 4 points after filtering.</p></li>
+<li><p>Require positive total current weight:</p>
+<pre class="text"><code>sum(current) &gt; 0</code></pre></li>
+</ol>
+<p>Default behavior:</p>
+<pre class="text"><code>shift=False
+cutoff=False
+cutoff_frac=0.05</code></pre>
+<p>So by default the analysis removes non-finite rows only. Baseline
+subtraction and cutoff filtering are opt-in.</p>
+<h3 id="wire-scanner-derived-quantities">Wire Scanner Derived
+Quantities</h3>
+<p>After preprocessing, weighted centroid and RMS size are computed with
+current as the weight.</p>
+<p>For one plane:</p>
+<pre class="text"><code>center = sum(current_i * position_i) / sum(current_i)
+rms    = sqrt(sum(current_i * (position_i - center)^2) / sum(current_i))</code></pre>
+<p>The returned weighted quantities are:</p>
+<pre class="text"><code>x_center
+y_center
+sigma_x
+sigma_y</code></pre>
+<p>A separate Gaussian fit is also performed for each plane:</p>
+<pre class="text"><code>current(position) = a * exp(-(position - x0)^2 / (2 * sigma^2)) + offset</code></pre>
+<p>Initial fit guesses are:</p>
+<pre class="text"><code>a      = max(current)
+x0     = weighted center
+sigma  = weighted rms
+offset = 0</code></pre>
+<p>The returned fit quantities are:</p>
+<pre class="text"><code>gaussian_fit_x_center
+gaussian_fit_y_center
+gaussian_fit_sigma_x
+gaussian_fit_sigma_y</code></pre>
+<p>The function also returns metadata about preprocessing:</p>
+<pre class="text"><code>shift_applied
+cutoff_applied
+cutoff_fraction
+x_points_used
+y_points_used</code></pre>
+<p>If plotting is enabled, the plot uses the processed profiles, not the
+original raw profiles.</p>
+<h3 id="allison-scanner-manipulation">Allison Scanner Manipulation</h3>
+<p>Allison scanner analysis is implemented by
+<code>analyze_allison_scanner_2d</code>.</p>
+<p>Current behavior uses the loaded arrays directly:</p>
+<pre class="text"><code>x
+xp
+x_current</code></pre>
+<p>Unlike wire scanner analysis, there is currently no explicit finite
+filtering, baseline shifting, or cutoff filtering in
+<code>analyze_allison_scanner_2d</code>.</p>
+<p>Weighted centroids and RMS values are computed using
+<code>x_current</code> as the weight:</p>
+<pre class="text"><code>x_center  = weighted mean of x
+xp_center = weighted mean of xp
+sigma_x   = weighted RMS of x
+sigma_xp  = weighted RMS of xp</code></pre>
+<p>The weighted covariance is:</p>
+<pre class="text"><code>covariance_x_xp =
+    sum(x_current_i * (x_i - x_center) * (xp_i - xp_center))
+    / sum(x_current_i)</code></pre>
+<p>The RMS emittance is:</p>
+<pre class="text"><code>emittance_rms = sqrt(sigma_x^2 * sigma_xp^2 - covariance_x_xp^2)</code></pre>
+<p>The current geometric-emittance estimate is:</p>
+<pre class="text"><code>emittance_geometric = sigma_x * sigma_xp</code></pre>
+<p>Separate 1D Gaussian fits are performed for <code>x</code> and
+<code>xp</code> projections using the same current weights as measured
+values:</p>
+<pre class="text"><code>x_current(x)  = a * exp(-(x  - x0)^2  / (2 * sigma_x^2))  + offset
+x_current(xp) = a * exp(-(xp - xp0)^2 / (2 * sigma_xp^2)) + offset</code></pre>
+<p>Initial fit guesses are:</p>
+<pre class="text"><code>a      = max(x_current)
+center = weighted center
+sigma  = weighted RMS
+offset = 0</code></pre>
+<p>Returned Allison quantities:</p>
+<pre class="text"><code>x_center
+xp_center
+sigma_x
+sigma_xp
+gaussian_fit_x_center
+gaussian_fit_xp_center
+gaussian_fit_sigma_x
+gaussian_fit_sigma_xp
+covariance_x_xp
+emittance_rms
+emittance_geometric</code></pre>
+<p>If plotting is enabled, the plot uses the original loaded Allison
+arrays.</p>
+<h3 id="important-assumptions-and-caveats">Important Assumptions And
+Caveats</h3>
+<ul>
+<li>Wire scanner preprocessing is optional except for NaN/Inf
+removal.</li>
+<li>Allison scanner analysis currently does not remove NaN/Inf values
+before computing moments or fitting.</li>
+<li>Current values are used directly as weights. Negative current values
+are not clipped unless <code>shift=True</code> is used for wire scanner
+profiles.</li>
+<li>Wire scanner Gaussian-fit sigmas are returned directly from
+<code>curve_fit</code>; the code does not force them positive with
+<code>abs</code>.</li>
+<li>The RMS moment calculation and Gaussian fit are separate estimates.
+Downstream code should be explicit about which one it uses.</li>
+<li>Plot files reflect processed wire-scanner data when preprocessing is
+enabled.</li>
+</ul>
+<h2 id="notebook-hygiene">Notebook Hygiene</h2>
+<p>Committed notebooks should contain source cells only:</p>
+<ul>
+<li>no execution counts;</li>
+<li>no embedded outputs;</li>
+<li>no absolute machine-specific paths;</li>
+<li>no local TRACK paths in source cells.</li>
+</ul>
+<p>Use package code from <code>src/synapticTrack</code>; do not redefine
+production functions inside notebooks.</p>
+<h3 id="covered-notebook-roots">Covered Notebook Roots</h3>
+<p>Notebook hygiene tests cover notebooks in <code>examples/</code>,
+<code>notebooks/</code>, and <code>RAON/</code>. This includes mirrored
+RAON LEBT notebooks, extended LEBT training notebooks, and MEBT TRACK
+notebooks. Generated run folders and scratch/output files should be
+ignored locally rather than committed.</p>
+<h3 id="clear-outputs">Clear Outputs</h3>
+<p>Recommended workflow before committing notebooks:</p>
+<div class="sourceCode" id="cb24"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> scripts/strip_notebook_outputs.py</span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> scripts/strip_notebook_outputs.py <span class="at">--check</span></span></code></pre></div>
+<p>By default, the script processes <code>examples/</code>,
+<code>notebooks/</code>, and <code>RAON/</code>, matching the notebook
+roots covered by the tests, and skips <code>.ipynb_checkpoints</code>.
+Pass explicit files or directories to limit the scope:</p>
+<div class="sourceCode" id="cb25"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> scripts/strip_notebook_outputs.py RAON/MEBT_notebooks</span></code></pre></div>
+<p><code>nbstripout</code> is also listed in <code>pyproject.toml</code>
+and can be installed as a git filter, but the project script is
+dependency-free and covers all notebook roots checked by the tests.</p>
+<h3 id="local-paths">Local Paths</h3>
+<p>Use config files and environment variables for machine-specific
+paths. For example:</p>
+<div class="sourceCode" id="cb26"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>TRACK_EXE_PATH <span class="op">=</span> Path(os.environ.get(<span class="st">&#39;TRACK_EXE_PATH&#39;</span>, <span class="st">&#39;../TRACK/TRACKv39C.exe&#39;</span>)).expanduser().resolve()</span></code></pre></div>
+<p>For production Sobol generation, prefer
+<code>configs/local/lebt_no_offset_sobol_local.yaml</code>; files under
+<code>configs/local/</code> are git-ignored except examples.</p>
+<h3 id="checks">Checks</h3>
+<p>The test suite includes notebook hygiene checks for project
+notebooks:</p>
+<div class="sourceCode" id="cb27"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> <span class="at">-m</span> pytest tests/test_notebooks.py <span class="at">-q</span></span></code></pre></div>
+
+</main>
+</div>
+</body>
+</html>

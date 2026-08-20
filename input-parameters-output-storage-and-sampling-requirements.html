@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="author" content="Chong Shik Park" />
+  <title>Input Parameters, Output Storage, and Sampling Requirements - synapticTrack</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" type="text/javascript"></script>
+</head>
+<body>
+<header class="site-header">
+  <div class="rtd-brand">
+    <img src="synaptictrack.svg" alt="synapticTrack logo" />
+    <div>
+      <h1>synapticTrack</h1>
+      <p>Project Documentation</p>
+    </div>
+  </div>
+  <label class="rtd-search" aria-label="Search documentation">
+    <span>Search docs</span>
+    <input type="search" placeholder="Search docs" disabled />
+  </label>
+  <div class="rtd-version">latest</div>
+  <div class="rtd-downloads">
+    <a href="synapticTrack_consolidated.pdf">PDF</a>
+    <a href="synapticTrack_consolidated.tex">LaTeX</a>
+  </div>
+  <p class="byline">Chong Shik Park<br />Department of Accelerator Science and Center for Accelerator Research, Korea University, Sejong, 30019 Republic of Korea</p>
+</header>
+<div class="layout">
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="index.html">synapticTrack Documentation</a></li>
+<li><a href="project-overview.html">Project Overview</a></li>
+<li><a href="program-roadmap-and-milestones.html">Program Roadmap and Milestones</a></li>
+<li><a class="current" href="input-parameters-output-storage-and-sampling-requirements.html">Input Parameters, Output Storage, and Sampling Requirements</a></li>
+<li><a href="physics-models-and-machine-conventions.html">Physics Models and Machine Conventions</a></li>
+<li><a href="simulation-code-structure-and-external-codes.html">Simulation Code Structure and External Codes</a></li>
+<li><a href="simulation-procedures-and-production-dataset-workflow.html">Simulation Procedures and Production Dataset Workflow</a></li>
+<li><a href="analysis-methods-and-analysis-procedure.html">Analysis Methods and Analysis Procedure</a></li>
+<li><a href="new-user-installation-and-local-operation.html">New User Installation and Local Operation</a></li>
+<li><a href="unclassified-markdown-sources.html">Unclassified Markdown Sources</a></li>
+<li><a href="references.html">References</a></li>
+</ul>
+</nav>
+<main>
+<div class="page-tools"><a href="index.html">Docs home</a><span>Input Parameters, Output Storage, and Sampling Requirements</span></div>
+<h1 id="input-parameters-output-storage-and-sampling-requirements">Input
+Parameters, Output Storage, and Sampling Requirements</h1>
+<h2 id="input-dimension-strategy-for-lebt-surrogate-models">01 — Input
+Dimension Strategy for LEBT Surrogate Models</h2>
+<h3 id="purpose">Purpose</h3>
+<p>This document defines how to handle the LEBT surrogate input
+dimension after Task 3 dataset generation.</p>
+<p>Current situation:</p>
+<ul>
+<li>Current input dimension: approximately 24D.</li>
+<li>Current output: diagnostic quantities, currently 12D.</li>
+<li>The current input includes initial beam Twiss parameters,
+emittances, initial offsets/angles, beam current, steering magnet
+strengths, and electrostatic quadrupole strengths.</li>
+</ul>
+<p>Main question:</p>
+<blockquote>
+<p>Should <code>x0</code>, <code>xp0</code>, <code>y0</code>,
+<code>yp0</code>, and <code>I_beam</code> be removed from the surrogate
+input?</p>
+</blockquote>
+<h3 id="recommendation">Recommendation</h3>
+<p>Do not force one large 24D model to serve all purposes. Instead,
+split the work into separate surrogate families:</p>
+<ol type="1">
+<li>optics surrogate,</li>
+<li>orbit-response surrogate,</li>
+<li>optional full absolute diagnostic surrogate.</li>
+</ol>
+<p>This reduces sample complexity and makes each model physically
+interpretable.</p>
+<hr />
+<h3 id="can-x0-xp0-y0-yp0-be-removed">1. Can <code>x0</code>,
+<code>xp0</code>, <code>y0</code>, <code>yp0</code> be removed?</h3>
+<p>Yes, but only for models that do not need to predict absolute beam
+centroids from arbitrary injected offsets.</p>
+<p>The variables</p>
+<p><span class="math display">\[
+x_0,\quad x&#39;_0,\quad y_0,\quad y&#39;_0
+\]</span></p>
+<p>mainly control centroid/orbit propagation. For linear optics and
+central moments, centroid motion and rms-size evolution are
+approximately separable.</p>
+<p>Therefore:</p>
+<ul>
+<li>For rms-size and Twiss propagation, they can often be removed.</li>
+<li>For absolute centroid prediction, they should either be kept or the
+target should be changed to centroid shift.</li>
+</ul>
+<hr />
+<h3 id="recommended-model-split">2. Recommended model split</h3>
+<h4 id="model-a-optics-surrogate">Model A: Optics surrogate</h4>
+<p>Purpose:</p>
+<ul>
+<li>predict rms beam size,</li>
+<li>predict output covariance/moments,</li>
+<li>predict Twiss/emittance propagation,</li>
+<li>support phase-space reconstruction.</li>
+</ul>
+<p>Suggested input:</p>
+<p><span class="math display">\[
+[
+\alpha_x,\beta_x,\epsilon_x,
+\alpha_y,\beta_y,\epsilon_y,
+I_{\mathrm{beam}},
+\mathrm{equad}_1,\ldots,\mathrm{equad}_{N_q}
+]
+\]</span></p>
+<p>If current is fixed or weakly influential, use:</p>
+<p><span class="math display">\[
+[
+\alpha_x,\beta_x,\epsilon_x,
+\alpha_y,\beta_y,\epsilon_y,
+\mathrm{equad}_1,\ldots,\mathrm{equad}_{N_q}
+]
+\]</span></p>
+<p>Do not include:</p>
+<p><span class="math display">\[
+x_0,\quad x&#39;_0,\quad y_0,\quad y&#39;_0
+\]</span></p>
+<p>unless strong nonlinear orbit-size coupling or aperture clipping is
+important.</p>
+<p>Suggested output:</p>
+<ul>
+<li>rms sizes at diagnostic locations,</li>
+<li>final beam moments,</li>
+<li>Twiss/emittance at last wire scanner and LEBT exit.</li>
+</ul>
+<hr />
+<h4 id="model-b-orbit-response-surrogate">Model B: Orbit-response
+surrogate</h4>
+<p>Purpose:</p>
+<ul>
+<li>support LEBT orbit correction,</li>
+<li>avoid dependence on unknown injected centroid/angle,</li>
+<li>support real experimental validation where initial state may be
+unknown.</li>
+</ul>
+<p>Suggested input:</p>
+<p><span class="math display">\[
+[
+\Delta \mathrm{steerer}_1,\ldots,\Delta \mathrm{steerer}_{N_s},
+\mathrm{equad}_1,\ldots,\mathrm{equad}_{N_q}
+]
+\]</span></p>
+<p>or</p>
+<p><span class="math display">\[
+[
+\mathrm{steerer}_1,\ldots,\mathrm{steerer}_{N_s},
+\mathrm{equad}_1,\ldots,\mathrm{equad}_{N_q}
+]
+\]</span></p>
+<p>Suggested output:</p>
+<p><span class="math display">\[
+[
+\Delta x_c(s_1),\Delta y_c(s_1),\ldots,
+\Delta x_c(s_N),\Delta y_c(s_N)
+]
+\]</span></p>
+<p>where</p>
+<p><span class="math display">\[
+\Delta x_c(s_i)
+=
+x_c(s_i;\mathbf{u})
+-
+x_c(s_i;\mathbf{u}_{\mathrm{ref}})
+\]</span></p>
+<p>and similarly for <span class="math inline">\(y\)</span>.</p>
+<p>This model does not require explicit initial offsets if the reference
+orbit is measured.</p>
+<hr />
+<h4 id="model-c-full-absolute-diagnostic-surrogate">Model C: Full
+absolute diagnostic surrogate</h4>
+<p>Purpose:</p>
+<ul>
+<li>full simulation replacement,</li>
+<li>absolute prediction of centroid and rms diagnostics,</li>
+<li>useful for synthetic-data studies and model completeness.</li>
+</ul>
+<p>Suggested input:</p>
+<p><span class="math display">\[
+[
+\alpha_x,\beta_x,\epsilon_x,
+\alpha_y,\beta_y,\epsilon_y,
+x_0,x&#39;_0,y_0,y&#39;_0,
+I_{\mathrm{beam}},
+\mathrm{steerers},
+\mathrm{equads}
+]
+\]</span></p>
+<p>Suggested output:</p>
+<p><span class="math display">\[
+[
+x_c(s_i),y_c(s_i),\sigma_x(s_i),\sigma_y(s_i)
+]_{i=1}^{N}
+\]</span></p>
+<p>This is the most complete model but requires more training
+samples.</p>
+<hr />
+<h3 id="what-to-do-with-beam-current">3. What to do with beam
+current?</h3>
+<p>Beam current <span class="math inline">\(I_{\mathrm{beam}}\)</span>
+should be handled according to physics relevance.</p>
+<h4 id="option-1-fixed-current-model">Option 1: fixed-current model</h4>
+<p>Use this if all simulation and experiment are done near one nominal
+current:</p>
+<p><span class="math display">\[
+I = I_{\mathrm{nom}}
+\]</span></p>
+<p>Do not include current as input.</p>
+<h4 id="option-2-narrow-current-model">Option 2: narrow current
+model</h4>
+<p>Use this if current varies mildly:</p>
+<p><span class="math display">\[
+I \in [0.8I_{\mathrm{nom}},1.2I_{\mathrm{nom}}]
+\]</span></p>
+<p>Include current as input only in optics/state models.</p>
+<h4 id="option-3-current-indexed-models">Option 3: current-indexed
+models</h4>
+<p>Train separate models:</p>
+<p><span class="math display">\[
+F_{\theta}^{I_1},\quad F_{\theta}^{I_2},\quad F_{\theta}^{I_3}
+\]</span></p>
+<p>This is useful if power-supply or beam-current settings are
+discrete.</p>
+<h4 id="option-4-full-current-dependent-model">Option 4: full
+current-dependent model</h4>
+<p>Use if current strongly affects space charge and rms evolution:</p>
+<p><span class="math display">\[
+I \in [0.5I_{\mathrm{nom}},1.5I_{\mathrm{nom}}]
+\]</span></p>
+<p>This requires more data.</p>
+<hr />
+<h3 id="recommended-implementation-decision">4. Recommended
+implementation decision</h3>
+<p>Do not delete existing input columns. Instead, allow different input
+views:</p>
+<div class="sourceCode" id="cb1"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>input_view <span class="op">=</span> <span class="st">&quot;full&quot;</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>input_view <span class="op">=</span> <span class="st">&quot;optics&quot;</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>input_view <span class="op">=</span> <span class="st">&quot;orbit_response&quot;</span></span></code></pre></div>
+<p>Suggested behavior:</p>
+<ul>
+<li><code>full</code>: all available inputs.</li>
+<li><code>optics</code>: Twiss, emittance, optional current,
+equads.</li>
+<li><code>orbit_response</code>: steerers, equads, possibly delta
+steerers.</li>
+<li><code>custom</code>: user-provided list of input columns.</li>
+</ul>
+<hr />
+<h3 id="suggested-repository-changes">5. Suggested repository
+changes</h3>
+<p>Possible files:</p>
+<pre class="text"><code>src/synaptictrack/data/input_views.py
+src/synaptictrack/data/schemas.py
+src/synaptictrack/data/datasets.py
+tests/test_input_views.py</code></pre>
+<p>Suggested functionality:</p>
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>get_input_columns(view: <span class="bu">str</span>, <span class="op">*</span>, include_current: <span class="bu">bool</span> <span class="op">=</span> <span class="va">True</span>) <span class="op">-&gt;</span> <span class="bu">list</span>[<span class="bu">str</span>]</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>select_input_view(dataframe, view: <span class="bu">str</span>, include_current: <span class="bu">bool</span> <span class="op">=</span> <span class="va">True</span>)</span></code></pre></div>
+<hr />
+<h3 id="required-tests">6. Required tests</h3>
+<ol type="1">
+<li>the original full input view still works;</li>
+<li>the optics input view removes <code>x0</code>, <code>xp0</code>,
+<code>y0</code>, <code>yp0</code>;</li>
+<li>the optics input view optionally includes or excludes
+<code>I_beam</code>;</li>
+<li>the orbit-response view includes steering and equad variables;</li>
+<li>input column ordering is deterministic;</li>
+<li>invalid view names raise a clear error;</li>
+<li>training code can accept different input dimensions.</li>
+</ol>
+<hr />
+<h2
+id="output-storage-strategy-for-diagnostics-and-beam-state-targets">02 —
+Output Storage Strategy for Diagnostics and Beam-State Targets</h2>
+<h3 id="purpose-1">Purpose</h3>
+<p>This document defines how to store original diagnostic outputs and
+additional beam-state outputs so that different surrogate models can use
+different targets.</p>
+<p>Main question:</p>
+<blockquote>
+<p>Can original diagnostic outputs and beam-state outputs be stored
+separately and reused by different models?</p>
+</blockquote>
+<p>Answer:</p>
+<p>Yes. This is strongly recommended.</p>
+<hr />
+<h3 id="core-recommendation">1. Core recommendation</h3>
+<p>Do not store all targets only as one flat array.</p>
+<p>Instead, store outputs in separate named groups:</p>
+<pre class="text"><code>output/
++-- diagnostics/
++-- orbit_response/
++-- state_last_ws/
++-- state_lebt_exit/</code></pre>
+<p>This allows the same simulation dataset to support multiple
+models:</p>
+<ul>
+<li>diagnostic-only surrogate,</li>
+<li>orbit-response surrogate,</li>
+<li>final-state surrogate,</li>
+<li>multi-task surrogate,</li>
+<li>phase-space inference model.</li>
+</ul>
+<hr />
+<h3 id="recommended-output-groups">2. Recommended output groups</h3>
+<h4 id="y_diag">2.1 <code>y_diag</code></h4>
+<p>Original diagnostic outputs.</p>
+<p>Possible contents:</p>
+<p><span class="math display">\[
+[
+x_c(s_1),y_c(s_1),\sigma_x(s_1),\sigma_y(s_1),
+\ldots,
+x_c(s_N),y_c(s_N),\sigma_x(s_N),\sigma_y(s_N)
+]
+\]</span></p>
+<p>If the current project output is 12D, keep it exactly as-is for
+backward compatibility.</p>
+<p>Do not break the existing training pipeline.</p>
+<hr />
+<h4 id="y_orbit_response">2.2 <code>y_orbit_response</code></h4>
+<p>Centroid changes relative to a reference setting.</p>
+<p><span class="math display">\[
+\Delta x_c(s_i)
+=
+x_c(s_i;\mathbf{u})
+-
+x_c(s_i;\mathbf{u}_{\mathrm{ref}})
+\]</span></p>
+<p><span class="math display">\[
+\Delta y_c(s_i)
+=
+y_c(s_i;\mathbf{u})
+-
+y_c(s_i;\mathbf{u}_{\mathrm{ref}})
+\]</span></p>
+<p>Suggested array:</p>
+<p><span class="math display">\[
+[
+\Delta x_c(s_1),\Delta y_c(s_1),\ldots,
+\Delta x_c(s_N),\Delta y_c(s_N)
+]
+\]</span></p>
+<p>This target is useful for orbit correction because it avoids
+requiring exact knowledge of the initial injected centroid.</p>
+<hr />
+<h4 id="y_state_last_ws">2.3 <code>y_state_last_ws</code></h4>
+<p>Beam state at the last wire scanner.</p>
+<p>Recommended contents:</p>
+<p><span class="math display">\[
+[
+x_c,\ x&#39;_c,\ y_c,\ y&#39;_c,
+\langle x^2\rangle,\langle xx&#39;\rangle,\langle x&#39;^2\rangle,
+\langle y^2\rangle,\langle yy&#39;\rangle,\langle y&#39;^2\rangle
+]
+\]</span></p>
+<p>This is a 10D state target.</p>
+<p>Also store derived Twiss values as either metadata or optional
+target:</p>
+<p><span class="math display">\[
+[
+\alpha_x,\beta_x,\epsilon_x,
+\alpha_y,\beta_y,\epsilon_y
+]
+\]</span></p>
+<hr />
+<h4 id="y_state_lebt_exit">2.4 <code>y_state_lebt_exit</code></h4>
+<p>Beam state at the LEBT exit.</p>
+<p>Use the same 10D structure:</p>
+<p><span class="math display">\[
+[
+x_c,\ x&#39;_c,\ y_c,\ y&#39;_c,
+\langle x^2\rangle,\langle xx&#39;\rangle,\langle x&#39;^2\rangle,
+\langle y^2\rangle,\langle yy&#39;\rangle,\langle y&#39;^2\rangle
+]
+\]</span></p>
+<p>This is the most important output for the later MEBT surrogate
+because it becomes the injected beam state.</p>
+<hr />
+<h3 id="why-moments-are-preferred-over-twiss-as-training-targets">3. Why
+moments are preferred over Twiss as training targets</h3>
+<p>The central second moments are</p>
+<p><span class="math display">\[
+\langle x^2\rangle,\quad
+\langle xx&#39;\rangle,\quad
+\langle x&#39;^2\rangle.
+\]</span></p>
+<p>From these,</p>
+<p><span class="math display">\[
+\epsilon_x
+=
+\sqrt{
+\langle x^2\rangle\langle x&#39;^2\rangle
+-
+\langle xx&#39;\rangle^2
+}
+\]</span></p>
+<p><span class="math display">\[
+\beta_x
+=
+\frac{\langle x^2\rangle}{\epsilon_x}
+\]</span></p>
+<p><span class="math display">\[
+\alpha_x
+=
+-\frac{\langle xx&#39;\rangle}{\epsilon_x}.
+\]</span></p>
+<p>Moments are closer to raw particle statistics and are generally more
+stable as supervised-learning labels.</p>
+<p>Therefore:</p>
+<ul>
+<li>train primarily on moments;</li>
+<li>derive Twiss for analysis;</li>
+<li>optionally include Twiss in metadata or auxiliary targets.</li>
+</ul>
+<hr />
+<h3 id="dataset-schema-recommendation">4. Dataset schema
+recommendation</h3>
+<p>A sample should support this structure:</p>
+<pre class="text"><code>sample/
++-- input/
+|   +-- twiss
+|   +-- emittance
+|   +-- initial_centroid
+|   +-- current
+|   +-- steerers
+|   +-- equads
++-- output/
+|   +-- diagnostics
+|   +-- orbit_response
+|   +-- state_last_ws
+|   +-- state_lebt_exit
++-- metadata/
+|   +-- units
+|   +-- seed
+|   +-- lattice_version
+|   +-- tracking_code
+|   +-- valid_flag
+|   +-- failure_reason</code></pre>
+<p>If using HDF5 or Zarr, use groups. If using tabular formats, use
+column prefixes such as:</p>
+<pre class="text"><code>diag/x_c_WS01
+diag/y_c_WS01
+diag/sigma_x_WS01
+diag/sigma_y_WS01
+
+state_exit/x_c
+state_exit/xp_c
+state_exit/y_c
+state_exit/yp_c
+state_exit/x2
+state_exit/xxp
+state_exit/xp2
+state_exit/y2
+state_exit/yyp
+state_exit/yp2</code></pre>
+<hr />
+<h3 id="target-selection-api">5. Target selection API</h3>
+<p>The dataset loader should support different target views:</p>
+<div class="sourceCode" id="cb7"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>target_view <span class="op">=</span> <span class="st">&quot;diagnostics&quot;</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>target_view <span class="op">=</span> <span class="st">&quot;orbit_response&quot;</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>target_view <span class="op">=</span> <span class="st">&quot;state_exit&quot;</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>target_view <span class="op">=</span> <span class="st">&quot;state_last_ws&quot;</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>target_view <span class="op">=</span> <span class="st">&quot;diag_plus_exit_state&quot;</span></span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>target_view <span class="op">=</span> <span class="st">&quot;diag_plus_all_states&quot;</span></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>target_view <span class="op">=</span> <span class="st">&quot;custom&quot;</span></span></code></pre></div>
+<p>Examples:</p>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>dataset <span class="op">=</span> LEBTSurrogateDataset(</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>    path<span class="op">=</span><span class="st">&quot;data/lebt_dataset_v3.h5&quot;</span>,</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    input_view<span class="op">=</span><span class="st">&quot;optics&quot;</span>,</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>    target_view<span class="op">=</span><span class="st">&quot;state_exit&quot;</span>,</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<div class="sourceCode" id="cb9"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>dataset <span class="op">=</span> LEBTSurrogateDataset(</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>    path<span class="op">=</span><span class="st">&quot;data/lebt_dataset_v3.h5&quot;</span>,</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>    input_view<span class="op">=</span><span class="st">&quot;full&quot;</span>,</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    target_view<span class="op">=</span><span class="st">&quot;diag_plus_all_states&quot;</span>,</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<hr />
+<h3 id="multi-task-output-strategy">6. Multi-task output strategy</h3>
+<p>A multi-task surrogate can predict:</p>
+<p><span class="math display">\[
+\mathbf{y}
+=
+[
+\mathbf{y}_{\mathrm{diag}},
+\mathbf{y}_{\mathrm{state,lastWS}},
+\mathbf{y}_{\mathrm{state,exit}}
+]
+\]</span></p>
+<p>The training loss should be grouped:</p>
+<p><span class="math display">\[
+\mathcal{L}
+=
+\lambda_{\mathrm{diag}}\mathcal{L}_{\mathrm{diag}}
++
+\lambda_{\mathrm{lastWS}}\mathcal{L}_{\mathrm{lastWS}}
++
+\lambda_{\mathrm{exit}}\mathcal{L}_{\mathrm{exit}}.
+\]</span></p>
+<p>Do not force all outputs to have equal weight. Normalize each group
+separately.</p>
+<hr />
+<h3 id="required-tests-1">7. Required tests</h3>
+<ol type="1">
+<li>original diagnostic output path remains unchanged;</li>
+<li><code>y_diag</code> can be loaded independently;</li>
+<li><code>y_state_last_ws</code> can be loaded independently;</li>
+<li><code>y_state_lebt_exit</code> can be loaded independently;</li>
+<li>combined target views concatenate in deterministic order;</li>
+<li>derived Twiss parameters from moments are physically valid;</li>
+<li>covariance determinants are positive for generated labels;</li>
+<li>old notebooks still run with diagnostic-only output.</li>
+</ol>
+<hr />
+<h2
+id="recommended-input-parameter-ranges-for-lebt-surrogate-data-generation">03
+— Recommended Input Parameter Ranges for LEBT Surrogate Data
+Generation</h2>
+<h3 id="purpose-2">Purpose</h3>
+<p>This document defines recommended sampling ranges for LEBT surrogate
+model data generation.</p>
+<p>Main question:</p>
+<blockquote>
+<p>What ranges should be used for input parameters?</p>
+</blockquote>
+<p>The exact values should ultimately come from the RAON LEBT nominal
+optics, hardware limits, and trusted simulation acceptance. Until those
+are fully fixed, use relative ranges around nominal values.</p>
+<hr />
+<h3 id="range-strategy">1. Range strategy</h3>
+<p>Use three nested ranges:</p>
+<ol type="1">
+<li>nominal range,</li>
+<li>training range,</li>
+<li>stress-test range.</li>
+</ol>
+<p>Do not use one wide uniform box for everything.</p>
+<p>The recommended strategy is:</p>
+<ul>
+<li>train densely near normal operation;</li>
+<li>include enough mismatch for robustness;</li>
+<li>reserve extreme cases for validation and stress testing;</li>
+<li>avoid wasting samples in always-lost or physically irrelevant
+regions.</li>
+</ul>
+<hr />
+<h3 id="twiss-parameter-ranges">2. Twiss parameter ranges</h3>
+<p>Let the nominal input Twiss parameters be:</p>
+<p><span class="math display">\[
+\alpha_{x0},\quad \beta_{x0},\quad \epsilon_{x0}
+\]</span></p>
+<p>and similarly for the <span class="math inline">\(y\)</span>
+plane.</p>
+<h4 id="training-range">2.1 Training range</h4>
+<p>Use:</p>
+<p><span class="math display">\[
+\alpha_x \in [\alpha_{x0}-2,\alpha_{x0}+2]
+\]</span></p>
+<p><span class="math display">\[
+\beta_x \in [0.5\beta_{x0},2.0\beta_{x0}]
+\]</span></p>
+<p><span class="math display">\[
+\epsilon_x \in [0.5\epsilon_{x0},2.0\epsilon_{x0}]
+\]</span></p>
+<p>Apply the same structure to <span
+class="math inline">\(y\)</span>:</p>
+<p><span class="math display">\[
+\alpha_y \in [\alpha_{y0}-2,\alpha_{y0}+2]
+\]</span></p>
+<p><span class="math display">\[
+\beta_y \in [0.5\beta_{y0},2.0\beta_{y0}]
+\]</span></p>
+<p><span class="math display">\[
+\epsilon_y \in [0.5\epsilon_{y0},2.0\epsilon_{y0}]
+\]</span></p>
+<h4 id="stress-test-range">2.2 Stress-test range</h4>
+<p>Use:</p>
+<p><span class="math display">\[
+\alpha_x \in [\alpha_{x0}-4,\alpha_{x0}+4]
+\]</span></p>
+<p><span class="math display">\[
+\beta_x \in [0.25\beta_{x0},4.0\beta_{x0}]
+\]</span></p>
+<p><span class="math display">\[
+\epsilon_x \in [0.25\epsilon_{x0},3.0\epsilon_{x0}]
+\]</span></p>
+<p>Again, apply the same structure to <span
+class="math inline">\(y\)</span>.</p>
+<p>Stress-test samples should be used primarily for validation, not as
+the dominant training population.</p>
+<hr />
+<h3 id="initial-offsets-and-angles">3. Initial offsets and angles</h3>
+<p>If included in the full surrogate:</p>
+<h4 id="nominal-training-range">3.1 Nominal training range</h4>
+<p><span class="math display">\[
+x_0,y_0 \in [-2,2]\ \mathrm{mm}
+\]</span></p>
+<p><span class="math display">\[
+x&#39;_0,y&#39;_0 \in [-10,10]\ \mathrm{mrad}
+\]</span></p>
+<h4 id="stress-test-range-1">3.2 Stress-test range</h4>
+<p><span class="math display">\[
+x_0,y_0 \in [-5,5]\ \mathrm{mm}
+\]</span></p>
+<p><span class="math display">\[
+x&#39;_0,y&#39;_0 \in [-30,30]\ \mathrm{mrad}
+\]</span></p>
+<p>If these values exceed the realistic LEBT acceptance, reduce them. Do
+not oversample regions where the beam is always lost.</p>
+<hr />
+<h3 id="beam-current">4. Beam current</h3>
+<p>If current is fixed, do not include it as an input.</p>
+<p>If included, use one of the following.</p>
+<h4 id="narrow-current-model">4.1 Narrow current model</h4>
+<p><span class="math display">\[
+I \in [0.8I_{\mathrm{nom}},1.2I_{\mathrm{nom}}]
+\]</span></p>
+<p>Recommended for the first current-dependent surrogate.</p>
+<h4 id="general-current-model">4.2 General current model</h4>
+<p><span class="math display">\[
+I \in [0.5I_{\mathrm{nom}},1.5I_{\mathrm{nom}}]
+\]</span></p>
+<p>Use only after the narrow model works.</p>
+<h4 id="stress-test-current-range">4.3 Stress-test current range</h4>
+<p><span class="math display">\[
+I \in [0,2I_{\mathrm{nom}}]
+\]</span></p>
+<p>Use for validation, not first training.</p>
+<hr />
+<h3 id="steering-magnet-ranges">5. Steering magnet ranges</h3>
+<p>If simulation uses kick angles:</p>
+<p><span class="math display">\[
+\theta_i \in [-\theta_{i,\max},\theta_{i,\max}]
+\]</span></p>
+<p>However, the training set should be denser in the operational
+region:</p>
+<p><span class="math display">\[
+\theta_i \in [-0.5\theta_{i,\max},0.5\theta_{i,\max}]
+\]</span></p>
+<p>For real experimental validation, prefer calibrated hardware
+variables:</p>
+<p><span class="math display">\[
+V_i \in [V_{i,\min},V_{i,\max}]
+\]</span></p>
+<p>or</p>
+<p><span class="math display">\[
+I_i \in [I_{i,\min},I_{i,\max}]
+\]</span></p>
+<p>with conversion to kick angle handled by an actuator model.</p>
+<hr />
+<h3 id="electrostatic-quadrupole-ranges">6. Electrostatic quadrupole
+ranges</h3>
+<p>Let <span class="math inline">\(G_{j0}\)</span> be the nominal equad
+strength.</p>
+<h4 id="first-training-range">6.1 First training range</h4>
+<p><span class="math display">\[
+G_j \in [0.8G_{j0},1.2G_{j0}]
+\]</span></p>
+<h4 id="wider-training-range">6.2 Wider training range</h4>
+<p><span class="math display">\[
+G_j \in [0.6G_{j0},1.4G_{j0}]
+\]</span></p>
+<h4 id="hardware-limit-range">6.3 Hardware-limit range</h4>
+<p><span class="math display">\[
+G_j \in [G_{j,\min},G_{j,\max}]
+\]</span></p>
+<p>Use the hardware-limit range only when needed for recovery or
+robustness studies.</p>
+<hr />
+<h3 id="recommended-dataset-versions">7. Recommended dataset
+versions</h3>
+<h4 id="dataset-v1-optics-surrogate">Dataset v1: optics surrogate</h4>
+<p>Purpose:</p>
+<ul>
+<li>rms and beam-state propagation.</li>
+</ul>
+<p>Input:</p>
+<p><span class="math display">\[
+[
+\alpha_x,\beta_x,\epsilon_x,
+\alpha_y,\beta_y,\epsilon_y,
+\mathrm{equads}
+]
+\]</span></p>
+<p>Optional:</p>
+<p><span class="math display">\[
+I_{\mathrm{beam}}
+\]</span></p>
+<p>Ranges:</p>
+<p><span class="math display">\[
+\alpha = \alpha_0\pm 2
+\]</span></p>
+<p><span class="math display">\[
+\beta = 0.5\text{--}2.0\times\beta_0
+\]</span></p>
+<p><span class="math display">\[
+\epsilon = 0.5\text{--}2.0\times\epsilon_0
+\]</span></p>
+<p><span class="math display">\[
+G = 0.8\text{--}1.2\times G_0
+\]</span></p>
+<hr />
+<h4 id="dataset-v2-orbit-response-surrogate">Dataset v2: orbit-response
+surrogate</h4>
+<p>Purpose:</p>
+<ul>
+<li>LEBT orbit correction.</li>
+</ul>
+<p>Input:</p>
+<p><span class="math display">\[
+[
+\mathrm{steerers},
+\mathrm{equads}
+]
+\]</span></p>
+<p>Output:</p>
+<p><span class="math display">\[
+[
+\Delta x_c,\Delta y_c
+]
+\]</span></p>
+<p>Ranges:</p>
+<p><span class="math display">\[
+\theta = 0.5\text{--}1.0\times \text{operational steering range}
+\]</span></p>
+<p><span class="math display">\[
+G = 0.8\text{--}1.2\times G_0
+\]</span></p>
+<hr />
+<h4 id="dataset-v3-full-surrogate">Dataset v3: full surrogate</h4>
+<p>Purpose:</p>
+<ul>
+<li>complete absolute diagnostic prediction.</li>
+</ul>
+<p>Input:</p>
+<p><span class="math display">\[
+[
+\alpha,\beta,\epsilon,
+x_0,x&#39;_0,y_0,y&#39;_0,
+I,
+\mathrm{steerers},
+\mathrm{equads}
+]
+\]</span></p>
+<p>Use after v1 and v2 are validated.</p>
+<hr />
+<h3 id="sampling-method">8. Sampling method</h3>
+<p>Use Sobol or Latin-hypercube sampling.</p>
+<p>Recommended mixture:</p>
+<ul>
+<li>60% nominal/training range,</li>
+<li>25% mismatch/recovery range,</li>
+<li>15% stress-test or boundary range.</li>
+</ul>
+<p>For each simulation sample, store:</p>
+<ul>
+<li>input vector,</li>
+<li>physical parameter values before normalization,</li>
+<li>validity flag,</li>
+<li>failure reason,</li>
+<li>aperture/loss status,</li>
+<li>random seed,</li>
+<li>lattice version,</li>
+<li>units.</li>
+</ul>
+<hr />
+<h3 id="required-tests-2">9. Required tests</h3>
+<ol type="1">
+<li>generated ranges obey configuration bounds;</li>
+<li>beta and emittance are always positive;</li>
+<li>current is non-negative;</li>
+<li>steering and equad settings obey bounds;</li>
+<li>stress-test ranges are separated from training ranges;</li>
+<li>invalid range configurations raise clear errors;</li>
+<li>sampling is reproducible for a fixed seed;</li>
+<li>generated samples can be passed to the simulation adapter.</li>
+</ol>
+<hr />
+<h2 id="training-sample-requirements-for-lebt-surrogate-models">04 —
+Training Sample Requirements for LEBT Surrogate Models</h2>
+<h3 id="purpose-3">Purpose</h3>
+<p>This document estimates how much simulation data is needed for
+training the LEBT surrogate models.</p>
+<p>Main question:</p>
+<blockquote>
+<p>How many samples are needed for training the surrogate model?</p>
+</blockquote>
+<p>The answer depends on:</p>
+<ul>
+<li>input dimension,</li>
+<li>output dimension,</li>
+<li>nonlinearities,</li>
+<li>model type,</li>
+<li>sampling range,</li>
+<li>whether absolute outputs or response shifts are predicted,</li>
+<li>simulation noise from macroparticle statistics.</li>
+</ul>
+<hr />
+<h3 id="summary-recommendation">1. Summary recommendation</h3>
+<p>Do not generate a huge full 24D production dataset immediately.</p>
+<p>Use a staged data-generation strategy:</p>
+<ol type="1">
+<li>smoke-test dataset,</li>
+<li>first real dataset,</li>
+<li>production reduced-input dataset,</li>
+<li>production full-input dataset,</li>
+<li>active-learning refinement.</li>
+</ol>
+<hr />
+<h3 id="recommended-sample-counts">2. Recommended sample counts</h3>
+<h4 id="smoke-test-dataset">2.1 Smoke-test dataset</h4>
+<p>Purpose:</p>
+<ul>
+<li>verify code,</li>
+<li>verify dataset schema,</li>
+<li>verify normalization,</li>
+<li>verify training loop,</li>
+<li>verify notebook execution.</li>
+</ul>
+<p>Recommended size:</p>
+<p><span class="math display">\[
+N = 500\text{--}2{,}000
+\]</span></p>
+<p>Do not use this for scientific conclusions.</p>
+<hr />
+<h4 id="first-real-model">2.2 First real model</h4>
+<p>Purpose:</p>
+<ul>
+<li>determine whether the input/output definition is reasonable,</li>
+<li>compare MLP and physics-regularized MLP,</li>
+<li>inspect error distributions.</li>
+</ul>
+<p>Recommended size:</p>
+<p><span class="math display">\[
+N = 10{,}000\text{--}30{,}000
+\]</span></p>
+<p>This is suitable for first useful model comparisons.</p>
+<hr />
+<h4 id="reduced-input-optics-surrogate">2.3 Reduced-input optics
+surrogate</h4>
+<p>Purpose:</p>
+<ul>
+<li>rms-size and beam-state propagation,</li>
+<li>Twiss/emittance dependence,</li>
+<li>phase-space reconstruction support.</li>
+</ul>
+<p>Approximate input dimension:</p>
+<p><span class="math display">\[
+6 + N_{\mathrm{equad}}
+\]</span></p>
+<p>or</p>
+<p><span class="math display">\[
+7 + N_{\mathrm{equad}}
+\]</span></p>
+<p>if current is included.</p>
+<p>Recommended size:</p>
+<p><span class="math display">\[
+N = 50{,}000\text{--}100{,}000
+\]</span></p>
+<hr />
+<h4 id="orbit-response-surrogate">2.4 Orbit-response surrogate</h4>
+<p>Purpose:</p>
+<ul>
+<li>orbit correction,</li>
+<li>steering response,</li>
+<li>experimental RL pretraining.</li>
+</ul>
+<p>Approximate input dimension:</p>
+<p><span class="math display">\[
+N_{\mathrm{steerer}} + N_{\mathrm{equad}}
+\]</span></p>
+<p>Recommended size:</p>
+<p><span class="math display">\[
+N = 10{,}000\text{--}50{,}000
+\]</span></p>
+<p>If the response is close to linear, the lower end may be
+sufficient.</p>
+<hr />
+<h4 id="full-24d-surrogate">2.5 Full 24D surrogate</h4>
+<p>Purpose:</p>
+<ul>
+<li>absolute diagnostic prediction over a broad operating range.</li>
+</ul>
+<p>Recommended size:</p>
+<p><span class="math display">\[
+N = 100{,}000\text{--}300{,}000
+\]</span></p>
+<p>If the model includes wide current variation, large offsets, strong
+nonlinearities, and beam-state outputs, use more data.</p>
+<hr />
+<h4 id="full-model-with-diagnostic-and-state-outputs">2.6 Full model
+with diagnostic and state outputs</h4>
+<p>Purpose:</p>
+<ul>
+<li>publication-quality full surrogate,</li>
+<li>diagnostic prediction,</li>
+<li>final-state prediction,</li>
+<li>uncertainty analysis.</li>
+</ul>
+<p>Recommended size:</p>
+<p><span class="math display">\[
+N = 200{,}000\text{--}500{,}000
+\]</span></p>
+<p>Use this only after reduced models are validated.</p>
+<hr />
+<h3 id="why-the-full-24d-model-needs-many-samples">3. Why the full 24D
+model needs many samples</h3>
+<p>A 24D input space is large. Uniformly covering it is inefficient.</p>
+<p>The required sample size increases when:</p>
+<ul>
+<li>many inputs are weakly relevant but included anyway,</li>
+<li>output includes both centroids and beam-state moments,</li>
+<li>current-dependent dynamics are included,</li>
+<li>large offset/angle ranges cause nonlinear or aperture effects,</li>
+<li>the training region includes both nominal and stress-test
+conditions.</li>
+</ul>
+<p>Therefore, reducing the input dimension by model purpose is strongly
+recommended.</p>
+<hr />
+<h3 id="active-learning-strategy">4. Active-learning strategy</h3>
+<p>Use iterative data generation instead of one large blind dataset.</p>
+<p>Recommended loop:</p>
+<ol type="1">
+<li>generate <span class="math inline">\(N=5{,}000\)</span>
+samples;</li>
+<li>train a quick MLP;</li>
+<li>evaluate error versus input parameters;</li>
+<li>identify high-error regions;</li>
+<li>add <span class="math inline">\(N=20{,}000\)</span> Sobol
+samples;</li>
+<li>retrain;</li>
+<li>add focused samples near high-error or high-gradient regions;</li>
+<li>repeat until validation error saturates.</li>
+</ol>
+<p>This is more efficient than generating hundreds of thousands of
+samples immediately.</p>
+<hr />
+<h3 id="learning-curve-requirement">5. Learning-curve requirement</h3>
+<p>Train the same model with:</p>
+<p><span class="math display">\[
+N =
+[
+1{,}000,
+3{,}000,
+10{,}000,
+30{,}000,
+100{,}000
+]
+\]</span></p>
+<p>when available.</p>
+<p>Plot:</p>
+<p><span class="math display">\[
+\mathrm{MAE}(N),
+\qquad
+\mathrm{RMSE}(N),
+\qquad
+R^2(N),
+\qquad
+\mathrm{physics\ violation}(N).
+\]</span></p>
+<p>This determines whether more data are still useful.</p>
+<hr />
+<h3 id="validation-split-strategy">6. Validation split strategy</h3>
+<p>Do not use only random splits.</p>
+<p>Use:</p>
+<ol type="1">
+<li>random interpolation split;</li>
+<li>held-out Twiss/emittance region;</li>
+<li>held-out equad range;</li>
+<li>held-out steering range;</li>
+<li>stress-test region;</li>
+<li>closed-loop correction trajectory validation.</li>
+</ol>
+<p>For each split, report separate metrics.</p>
+<hr />
+<h3 id="suggested-dataset-phases">7. Suggested dataset phases</h3>
+<h4 id="phase-a-smoke-dataset">Phase A: smoke dataset</h4>
+<p><span class="math display">\[
+N=1{,}000
+\]</span></p>
+<p>Use in CI tests and notebooks.</p>
+<h4 id="phase-b-pilot-dataset">Phase B: pilot dataset</h4>
+<p><span class="math display">\[
+N=10{,}000\text{--}30{,}000
+\]</span></p>
+<p>Use for first MLP and physics-regularized comparison.</p>
+<h4 id="phase-c-reduced-production-dataset">Phase C: reduced production
+dataset</h4>
+<p><span class="math display">\[
+N=50{,}000\text{--}100{,}000
+\]</span></p>
+<p>Use for optics and orbit-response models.</p>
+<h4 id="phase-d-full-production-dataset">Phase D: full production
+dataset</h4>
+<p><span class="math display">\[
+N=100{,}000\text{--}300{,}000
+\]</span></p>
+<p>Use only after the target schema and model split are stable.</p>
+<h4 id="phase-e-active-learning-refinement">Phase E: active-learning
+refinement</h4>
+<p>Add focused samples in high-error regions.</p>
+<hr />
+<h3 id="required-tests-and-utilities">8. Required tests and
+utilities</h3>
+<ol type="1">
+<li>configurable dataset-size presets;</li>
+<li>smoke-test dataset generator;</li>
+<li>learning-curve training script;</li>
+<li>grouped validation split utilities;</li>
+<li>error-by-region reporting;</li>
+<li>reproducibility check for fixed seed;</li>
+<li>runtime metadata logging.</li>
+</ol>
+<hr />
+
+</main>
+</div>
+</body>
+</html>

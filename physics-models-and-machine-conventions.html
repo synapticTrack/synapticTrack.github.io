@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="author" content="Chong Shik Park" />
+  <title>Physics Models and Machine Conventions - synapticTrack</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" type="text/javascript"></script>
+</head>
+<body>
+<header class="site-header">
+  <div class="rtd-brand">
+    <img src="synaptictrack.svg" alt="synapticTrack logo" />
+    <div>
+      <h1>synapticTrack</h1>
+      <p>Project Documentation</p>
+    </div>
+  </div>
+  <label class="rtd-search" aria-label="Search documentation">
+    <span>Search docs</span>
+    <input type="search" placeholder="Search docs" disabled />
+  </label>
+  <div class="rtd-version">latest</div>
+  <div class="rtd-downloads">
+    <a href="synapticTrack_consolidated.pdf">PDF</a>
+    <a href="synapticTrack_consolidated.tex">LaTeX</a>
+  </div>
+  <p class="byline">Chong Shik Park<br />Department of Accelerator Science and Center for Accelerator Research, Korea University, Sejong, 30019 Republic of Korea</p>
+</header>
+<div class="layout">
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="index.html">synapticTrack Documentation</a></li>
+<li><a href="project-overview.html">Project Overview</a></li>
+<li><a href="program-roadmap-and-milestones.html">Program Roadmap and Milestones</a></li>
+<li><a href="input-parameters-output-storage-and-sampling-requirements.html">Input Parameters, Output Storage, and Sampling Requirements</a></li>
+<li><a class="current" href="physics-models-and-machine-conventions.html">Physics Models and Machine Conventions</a></li>
+<li><a href="simulation-code-structure-and-external-codes.html">Simulation Code Structure and External Codes</a></li>
+<li><a href="simulation-procedures-and-production-dataset-workflow.html">Simulation Procedures and Production Dataset Workflow</a></li>
+<li><a href="analysis-methods-and-analysis-procedure.html">Analysis Methods and Analysis Procedure</a></li>
+<li><a href="new-user-installation-and-local-operation.html">New User Installation and Local Operation</a></li>
+<li><a href="unclassified-markdown-sources.html">Unclassified Markdown Sources</a></li>
+<li><a href="references.html">References</a></li>
+</ul>
+</nav>
+<main>
+<div class="page-tools"><a href="index.html">Docs home</a><span>Physics Models and Machine Conventions</span></div>
+<h1 id="physics-models-and-machine-conventions">Physics Models and
+Machine Conventions</h1>
+<h2 id="lebt-steering-current-to-kick-conversion">LEBT Steering Current
+to Kick Conversion</h2>
+<h3 id="current-internal-convention">Current Internal Convention</h3>
+<p>The existing synapticTrack LEBT simulation, no-offset Sobol dataset,
+validation workflow, and MLP training pipeline use steering magnet kick
+angles in <code>mrad</code>.</p>
+<p>The existing 19D sampled input remains:</p>
+<pre class="text"><code>alpha_x, beta_x, emittance_x,
+alpha_y, beta_y, emittance_y,
+SM0_H, SM1_H, SM2_H, SM3_H, SM4_H,
+SM0_V, SM1_V, SM2_V, SM3_V, SM4_V,
+alpha_0, alpha_1, alpha_2</code></pre>
+<p>The steering entries <code>SM0_H ... SM4_V</code> are kick values in
+<code>mrad</code>.</p>
+<h3 id="machine-current-convention">Machine Current Convention</h3>
+<p>The real RAON LEBT steering magnets are controlled by power-supply
+current in amperes. The current assumed linear calibration is:</p>
+<pre class="text"><code>1 mrad kick = 0.168 A</code></pre>
+<p>The nominal power-supply current step is:</p>
+<pre class="text"><code>0.01 A</code></pre>
+<p>Therefore:</p>
+<pre class="text"><code>kick_mrad = current_A / 0.168
+current_A = 0.168 * kick_mrad
+0.01 A = 0.0595238 mrad</code></pre>
+<h3 id="conversion-equations">Conversion Equations</h3>
+<p>The implemented sign and offset convention is:</p>
+<pre class="text"><code>kick_mrad = polarity * (current_A - current_offset_A) / amp_per_mrad
+current_A = current_offset_A + polarity * amp_per_mrad * kick_mrad</code></pre>
+<p>The default calibration is:</p>
+<pre class="text"><code>amp_per_mrad = 0.168
+current_step_A = 0.01
+current_offset_A = 0.0
+polarity = +1</code></pre>
+<p>Each steering magnet can override:</p>
+<pre class="text"><code>amp_per_mrad
+current_offset_A
+current_min_A
+current_max_A
+current_step_A
+polarity</code></pre>
+<p>The optional config file is:</p>
+<pre class="text"><code>configs/hardware/lebt_steering_calibration.yaml</code></pre>
+<p>If that file is missing, built-in defaults are used.</p>
+<h3 id="quantization">Quantization</h3>
+<p>Current quantization is:</p>
+<pre class="text"><code>I_quantized = round(I / current_step_A) * current_step_A</code></pre>
+<p>Quantized kick is computed by converting the quantized current:</p>
+<pre class="text"><code>kick_quantized_mrad = I_quantized / amp_per_mrad</code></pre>
+<p>With the default calibration:</p>
+<pre class="text"><code>kick_step_mrad = 0.01 / 0.168 = 0.0595238 mrad</code></pre>
+<p>Quantization is opt-in. Simulation-only dataset generation and MLP
+training should normally leave quantization disabled.</p>
+<h3 id="policy-options">Policy Options</h3>
+<h4 id="option-a-simulation-native">Option A: Simulation-Native</h4>
+<p>Training and simulation use steering kick in <code>mrad</code>.
+Machine current is converted only at the hardware boundary.</p>
+<p>This is the current default and the recommended policy for the
+existing no-offset Sobol dataset and MLP surrogate training.</p>
+<h4 id="option-b-hardware-native">Option B: Hardware-Native</h4>
+<p>ML or RL actions use power-supply current in <code>A</code>. Before
+simulation or surrogate evaluation, currents are converted to kicks in
+<code>mrad</code>.</p>
+<p>This is recommended for future real-machine RL deployment because the
+action variable matches the physical actuator.</p>
+<h4 id="option-c-dual-representation">Option C: Dual Representation</h4>
+<p>Datasets may explicitly store both:</p>
+<pre class="text"><code>steering_kick_mrad
+steering_current_A</code></pre>
+<p>Training can then choose a representation through an explicit opt-in
+input view. This is useful for future experiment/simulation alignment,
+but it is not enabled by default.</p>
+<h3 id="current-training-recommendation">Current Training
+Recommendation</h3>
+<p>Keep the current production dataset and MLP training in kick units.
+The simulation naturally accepts mrad kicks, and the existing 19D Sobol
+dataset is already defined that way.</p>
+<p>Use:</p>
+<div class="sourceCode" id="cb13"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> synapticTrack.hardware <span class="im">import</span> SteeringActuatorAdapter</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>adapter <span class="op">=</span> SteeringActuatorAdapter()</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>kick_dict <span class="op">=</span> adapter.currents_to_kicks(current_dict, quantize<span class="op">=</span><span class="va">True</span>)</span></code></pre></div>
+<p>only when translating machine-facing current settings to
+simulation-facing kicks.</p>
+<h3 id="future-real-machine-rl-recommendation">Future Real-Machine RL
+Recommendation</h3>
+<p>Use current in <code>A</code> as the RL action variable at the
+hardware boundary. Convert to <code>mrad</code> before simulation or
+surrogate evaluation:</p>
+<div class="sourceCode" id="cb14"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>kick_dict <span class="op">=</span> adapter.currents_to_kicks(current_dict, quantize<span class="op">=</span><span class="va">True</span>)</span></code></pre></div>
+<p>This keeps the policy action space aligned with the real power
+supplies while preserving synapticTrack’s internal mrad convention.</p>
+<h3 id="limitations">Limitations</h3>
+<p>The current implementation assumes a linear current-to-kick
+calibration. Future machine studies should add:</p>
+<ul>
+<li>beam-based calibration per magnet;</li>
+<li>hysteresis characterization;</li>
+<li>polarity verification;</li>
+<li>current limits from hardware;</li>
+<li>reproducibility checks after cycling magnets;</li>
+<li>time-dependent or nonlinear correction terms if needed.</li>
+</ul>
+<p>Those effects are deliberately not assumed in the current layer.</p>
+<h2 id="lebt-production-dataset-configurations">LEBT Production Dataset
+Configurations</h2>
+<p>This document records the first versioned production
+dataset-generation configurations for the Task-3 LEBT surrogate
+workflow. These configs are intentionally staged and do not launch full
+production generation by default.</p>
+<h3 id="current-status-relative-to-sobol-workflow">Current Status
+Relative to Sobol Workflow</h3>
+<p>These early Task-3 production configs remain useful as design records
+and for legacy/generic LEBT dataset generation. The maintained no-offset
+production workflow is now
+<code>lebt_production_no_offset_multitarget_sobol_v1</code>, documented
+in <code>docs/lebt_no_offset_sobol_workflow.md</code>, with a 19D
+sampled input and 44D target output.</p>
+<h3 id="pilot-audit-decision">Pilot Audit Decision</h3>
+<p>The latest pilot audit did not find a pilot-sized current-schema
+dataset in the workspace. The only current-schema TRACK dataset had 8
+samples, and the larger available files were legacy orbit-correction
+datasets without schema metadata, validity masks, units, failed-sample
+reasons, or beam-state labels.</p>
+<p>Decision for v1 production configs:</p>
+<ul>
+<li>keep the Task-3 <code>training</code> ranges instead of widening
+ranges;</li>
+<li>split production datasets by model type;</li>
+<li>require a 100-sample preflight for each config before full
+generation;</li>
+<li>include metadata that records the pilot-audit blocker.</li>
+</ul>
+<h3 id="versioned-configs">Versioned Configs</h3>
+<table style="width:100%;">
+<colgroup>
+<col style="width: 14%" />
+<col style="width: 19%" />
+<col style="width: 19%" />
+<col style="width: 14%" />
+<col style="width: 19%" />
+<col style="width: 14%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Config ID</th>
+<th style="text-align: right;">Purpose</th>
+<th style="text-align: right;">Samples</th>
+<th>Preset</th>
+<th style="text-align: right;">State Outputs</th>
+<th>Default Output</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>lebt_production_diag_v1</code></td>
+<td style="text-align: right;">full-input diagnostic target</td>
+<td style="text-align: right;">50,000</td>
+<td><code>full</code></td>
+<td style="text-align: right;">no</td>
+<td><code>data/production/lebt_production_diag_v1.h5</code></td>
+</tr>
+<tr class="even">
+<td><code>lebt_production_optics_state_v1</code></td>
+<td style="text-align: right;">optics/state target</td>
+<td style="text-align: right;">50,000</td>
+<td><code>optics</code></td>
+<td style="text-align: right;">yes</td>
+<td><code>data/production/lebt_production_optics_state_v1.h5</code></td>
+</tr>
+<tr class="odd">
+<td><code>lebt_production_orbit_response_v1</code></td>
+<td style="text-align: right;">steerer/equad orbit response</td>
+<td style="text-align: right;">20,000</td>
+<td><code>orbit_response</code></td>
+<td style="text-align: right;">no</td>
+<td><code>data/production/lebt_production_orbit_response_v1.h5</code></td>
+</tr>
+</tbody>
+</table>
+<p>Config files live in <code>configs/lebt/</code>.</p>
+<h3 id="metadata-saved">Metadata Saved</h3>
+<p>The config loader injects these fields into dataset metadata:</p>
+<ul>
+<li><code>production_config_id</code></li>
+<li><code>production_config_version</code></li>
+<li><code>git_commit_hash</code></li>
+<li><code>lattice_version</code></li>
+<li><code>backend_name</code></li>
+<li><code>units</code></li>
+<li><code>random_seed</code></li>
+<li><code>sampling_method</code></li>
+<li><code>parameter_ranges</code></li>
+<li><code>generation_timestamp</code></li>
+<li><code>pilot_audit_status</code></li>
+</ul>
+<p>The full resolved <code>LEBTDatasetConfig</code> is also saved in
+generated HDF5 <code>config_json</code> by the dataset generator.
+Input-only dry runs save the same resolved config metadata.</p>
+<h3 id="dry-run-input-tables">Dry-Run Input Tables</h3>
+<p>Dry-run mode for production configs writes only sampled inputs and
+summary statistics. It does not create target arrays and does not call
+TRACK.</p>
+<div class="sourceCode" id="cb15"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> <span class="at">-m</span> synapticTrack.cli lebt-production-dry-run lebt_production_diag_v1</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> <span class="at">-m</span> synapticTrack.cli lebt-production-dry-run lebt_production_optics_state_v1</span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> <span class="at">-m</span> synapticTrack.cli lebt-production-dry-run lebt_production_orbit_response_v1</span></code></pre></div>
+<p>Optional overrides:</p>
+<div class="sourceCode" id="cb16"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> <span class="at">-m</span> synapticTrack.cli lebt-production-dry-run lebt_production_diag_v1 <span class="dt">\</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">--n-samples</span> 1000 <span class="dt">\</span></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">--output-file</span> data/dry_run/lebt_production_diag_v1_inputs_1000.h5 <span class="dt">\</span></span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">--summary-file</span> data/dry_run/lebt_production_diag_v1_inputs_1000.csv</span></code></pre></div>
+<h3 id="preflight-commands">Preflight Commands</h3>
+<p>These commands print a 100-sample preflight command by default:</p>
+<div class="sourceCode" id="cb17"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> <span class="at">-m</span> synapticTrack.cli lebt-production-preflight lebt_production_diag_v1</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> <span class="at">-m</span> synapticTrack.cli lebt-production-preflight lebt_production_optics_state_v1</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> <span class="at">-m</span> synapticTrack.cli lebt-production-preflight lebt_production_orbit_response_v1</span></code></pre></div>
+<p>To actually run the preflight after reviewing dry-run inputs and
+TRACK availability, add <code>--execute</code>:</p>
+<div class="sourceCode" id="cb18"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> <span class="at">-m</span> synapticTrack.cli lebt-production-preflight lebt_production_diag_v1 <span class="at">--execute</span></span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> <span class="at">-m</span> synapticTrack.cli lebt-production-preflight lebt_production_optics_state_v1 <span class="at">--execute</span></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a><span class="ex">python3</span> <span class="at">-m</span> synapticTrack.cli lebt-production-preflight lebt_production_orbit_response_v1 <span class="at">--execute</span></span></code></pre></div>
+<p>Do not run full production generation until each preflight has been
+audited for validity fraction, failed/lost rows, output ranges, units,
+and beam-state moment validity where applicable.</p>
+<h3 id="full-production-commands">Full Production Commands</h3>
+<p>Full generation is intentionally not wrapped as a one-line default
+command in this task. After successful preflight review, run production
+through the config loader or a reviewed operations script that calls
+<code>generate_lebt_dataset(config.to_lebt_config(dry_run=False))</code>
+for the selected config.</p>
+
+</main>
+</div>
+</body>
+</html>

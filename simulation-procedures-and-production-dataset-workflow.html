@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="author" content="Chong Shik Park" />
+  <title>Simulation Procedures and Production Dataset Workflow - synapticTrack</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" type="text/javascript"></script>
+</head>
+<body>
+<header class="site-header">
+  <div class="rtd-brand">
+    <img src="synaptictrack.svg" alt="synapticTrack logo" />
+    <div>
+      <h1>synapticTrack</h1>
+      <p>Project Documentation</p>
+    </div>
+  </div>
+  <label class="rtd-search" aria-label="Search documentation">
+    <span>Search docs</span>
+    <input type="search" placeholder="Search docs" disabled />
+  </label>
+  <div class="rtd-version">latest</div>
+  <div class="rtd-downloads">
+    <a href="synapticTrack_consolidated.pdf">PDF</a>
+    <a href="synapticTrack_consolidated.tex">LaTeX</a>
+  </div>
+  <p class="byline">Chong Shik Park<br />Department of Accelerator Science and Center for Accelerator Research, Korea University, Sejong, 30019 Republic of Korea</p>
+</header>
+<div class="layout">
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="index.html">synapticTrack Documentation</a></li>
+<li><a href="project-overview.html">Project Overview</a></li>
+<li><a href="program-roadmap-and-milestones.html">Program Roadmap and Milestones</a></li>
+<li><a href="input-parameters-output-storage-and-sampling-requirements.html">Input Parameters, Output Storage, and Sampling Requirements</a></li>
+<li><a href="physics-models-and-machine-conventions.html">Physics Models and Machine Conventions</a></li>
+<li><a href="simulation-code-structure-and-external-codes.html">Simulation Code Structure and External Codes</a></li>
+<li><a class="current" href="simulation-procedures-and-production-dataset-workflow.html">Simulation Procedures and Production Dataset Workflow</a></li>
+<li><a href="analysis-methods-and-analysis-procedure.html">Analysis Methods and Analysis Procedure</a></li>
+<li><a href="new-user-installation-and-local-operation.html">New User Installation and Local Operation</a></li>
+<li><a href="unclassified-markdown-sources.html">Unclassified Markdown Sources</a></li>
+<li><a href="references.html">References</a></li>
+</ul>
+</nav>
+<main>
+<div class="page-tools"><a href="index.html">Docs home</a><span>Simulation Procedures and Production Dataset Workflow</span></div>
+<h1
+id="simulation-procedures-and-production-dataset-workflow">Simulation
+Procedures and Production Dataset Workflow</h1>
+<h2 id="lebt-no-offset-sobol-dataset-workflow">LEBT No-Offset Sobol
+Dataset Workflow</h2>
+<p>This is the maintained production workflow for the no-offset LEBT
+surrogate dataset:</p>
+<pre class="text"><code>lebt_production_no_offset_multitarget_sobol_v1
+19D sampled input -&gt; 44D target output</code></pre>
+<p>The notebook-facing API is
+<code>synapticTrack.simulation.no_offset_sobol_production</code>. Its
+public imports are maintained for production notebooks, while
+implementation details live in focused modules such as schema, sampling,
+batch planning, batch I/O, audit, and runtime helpers.</p>
+<p>Beam current metadata uses canonical <code>uA</code> values and an
+explicit <code>track_current_per_synaptic_current</code> conversion
+factor. The default factor is <code>1.0</code> only for backward
+compatibility; TRACK current units remain unverified by local project
+documentation.</p>
+<h3 id="fixed-parameter-contract">Fixed-Parameter Contract</h3>
+<p>The sampled input is 19D. A full 24D simulation input is accepted by
+the LEBT surrogate only when its fixed parameters match the dataset
+schema: <code>x0</code>, <code>xp0</code>, <code>y0</code>, and
+<code>yp0</code> are <code>0.0</code>, while <code>beam_current</code>
+is fixed at <code>0.05</code> in the current TRACK input convention.
+Full-input validation checks these expected values with a configurable
+tolerance; it does not treat every fixed parameter as zero.</p>
+<h3 id="configure">Configure</h3>
+<p>Use the versioned config:</p>
+<pre class="text"><code>configs/datasets/lebt_no_offset_sobol_production.yaml</code></pre>
+<p>Put machine-specific paths in the local override file, which is
+git-ignored:</p>
+<pre class="text"><code>configs/local/lebt_no_offset_sobol_local.yaml</code></pre>
+<p>Typical local override fields:</p>
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode yaml"><code class="sourceCode yaml"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="fu">track_exe_path</span><span class="kw">:</span><span class="at"> TRACK/TRACKv39C.exe</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">source_dir</span><span class="kw">:</span><span class="at"> examples/lebt_orbit_corrections/orbit_corrections</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="fu">calibration_dir</span><span class="kw">:</span><span class="at"> examples/lebt_orbit_corrections/orbit_corrections/calibrations</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a><span class="fu">work_root</span><span class="kw">:</span><span class="at"> run.production/lebt_production_no_offset_multitarget_sobol_v1</span></span></code></pre></div>
+<h3 id="production-notebook">Production Notebook</h3>
+<p>Run:</p>
+<pre class="text"><code>notebooks/04_lebt_no_offset_sobol_dataset_production.ipynb</code></pre>
+<p>Default behavior is safe:</p>
+<div class="sourceCode" id="cb6"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>RUN_PREFLIGHT <span class="op">=</span> <span class="va">True</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>RUN_PREFLIGHT_SCALE_TEST <span class="op">=</span> <span class="va">False</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>RUN_PRODUCTION_100K <span class="op">=</span> <span class="va">False</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>RUN_EXTENSION_200K <span class="op">=</span> <span class="va">False</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>RUN_EXTENSION_300K <span class="op">=</span> <span class="va">False</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>RUN_EXTENSION_400K <span class="op">=</span> <span class="va">False</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>RUN_EXTENSION_500K <span class="op">=</span> <span class="va">False</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>RUN_EXTENSION_600K <span class="op">=</span> <span class="va">False</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>RUN_EXTENSION_700K <span class="op">=</span> <span class="va">False</span></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>RUN_EXTENSION_800K <span class="op">=</span> <span class="va">False</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>RUN_EXTENSION_900K <span class="op">=</span> <span class="va">False</span></span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>RUN_EXTENSION_1000K <span class="op">=</span> <span class="va">False</span></span></code></pre></div>
+<p>Only enable a production or extension stage after preflight passes.
+The parallel scale-test cell is optional because it launches multiple
+TRACK preflights and can select the fastest <code>n_workers</code> for
+staged production.</p>
+<h3 id="sobol-extension">Sobol Extension</h3>
+<p>The supported production totals are:</p>
+<pre class="text"><code>100_000 -&gt; 200_000 -&gt; ... -&gt; 900_000 -&gt; 1_000_000</code></pre>
+<p>To extend, keep the same dataset name, Sobol dimension, scramble
+flag, and scramble seed. Enable one stage cell at a time:</p>
+<div class="sourceCode" id="cb8"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a>RUN_PRODUCTION_100K <span class="op">=</span> <span class="va">True</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>RUN_EXTENSION_200K <span class="op">=</span> <span class="va">True</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>RUN_EXTENSION_300K <span class="op">=</span> <span class="va">True</span></span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>RUN_EXTENSION_400K <span class="op">=</span> <span class="va">True</span></span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>RUN_EXTENSION_500K <span class="op">=</span> <span class="va">True</span></span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>RUN_EXTENSION_600K <span class="op">=</span> <span class="va">True</span></span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>RUN_EXTENSION_700K <span class="op">=</span> <span class="va">True</span></span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a>RUN_EXTENSION_800K <span class="op">=</span> <span class="va">True</span></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a>RUN_EXTENSION_900K <span class="op">=</span> <span class="va">True</span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>RUN_EXTENSION_1000K <span class="op">=</span> <span class="va">True</span></span>
+<span id="cb8-11"><a href="#cb8-11" aria-hidden="true" tabindex="-1"></a>OVERWRITE <span class="op">=</span> <span class="va">False</span></span>
+<span id="cb8-12"><a href="#cb8-12" aria-hidden="true" tabindex="-1"></a>RESUME <span class="op">=</span> <span class="va">True</span></span></code></pre></div>
+<p>The generator plans missing global Sobol indices only. It must not
+reshuffle or regenerate completed samples.</p>
+<h3 id="consolidated-stage-files">Consolidated Stage Files</h3>
+<p>Generation writes resumable batch files under:</p>
+<pre class="text"><code>data/processed/lebt_production_no_offset_multitarget_sobol_v1/batches/</code></pre>
+<p>After a stage completes, you can optionally write one read-optimized
+HDF5 file for that stage without regenerating samples:</p>
+<div class="sourceCode" id="cb10"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> synapticTrack.simulation.no_offset_sobol_production <span class="im">import</span> consolidate_dataset_stage</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> stage_total <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">100_000</span>, <span class="dv">1_000_001</span>, <span class="dv">100_000</span>):</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    consolidate_dataset_stage(config, target_total_samples<span class="op">=</span>stage_total)</span></code></pre></div>
+<p>Default file names are:</p>
+<pre class="text"><code>data/processed/lebt_production_no_offset_multitarget_sobol_v1/lebt_production_no_offset_multitarget_sobol_v1_100000.h5
+...
+data/processed/lebt_production_no_offset_multitarget_sobol_v1/lebt_production_no_offset_multitarget_sobol_v1_1000000.h5</code></pre>
+<p>The production notebook exposes <code>RUN_CONSOLIDATION</code> and
+<code>CONSOLIDATION_STAGE_TOTALS</code> for this step. Consolidation
+checks duplicate indices and requires a contiguous completed range from
+global Sobol index 0 to the requested stage total.</p>
+<h3 id="validation-notebook">Validation Notebook</h3>
+<p>Run:</p>
+<pre class="text"><code>notebooks/05_lebt_no_offset_sobol_dataset_validation.ipynb</code></pre>
+<p>The notebook calls the pure audit API first:</p>
+<div class="sourceCode" id="cb13"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> synapticTrack.data.production_audit <span class="im">import</span> compute_validation_report</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>report <span class="op">=</span> compute_validation_report(DATASET_DIR)</span></code></pre></div>
+<p>Reports are written only when requested:</p>
+<div class="sourceCode" id="cb14"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>WRITE_REPORTS <span class="op">=</span> <span class="va">True</span></span></code></pre></div>
+<p>Outputs:</p>
+<pre class="text"><code>validation_report.json
+validation_report.md</code></pre>
+<h3 id="training-and-publication-metrics">Training and Publication
+Metrics</h3>
+<p>The staged no-offset 44D surrogate workflow includes plain MLP and
+physics-regularized MLP training notebooks, model-comparison notebooks,
+and publication-metric table generation. Paper-oriented metrics should
+not use a single mixed-unit 10D state RMSE as the main physical metric.
+<code>compute_state_physics_metrics()</code> is the canonical report
+shared by plain and physics-regularized MLP evaluation. Use diagnostic
+RMSE in millimetres, component-wise state errors, normalized state
+errors, derived Courant-Snyder/emittance errors, and covariance-validity
+fractions. The mixed-unit value remains a marked legacy comparison
+metric only.</p>
+<p>Current publication tables are generated under:</p>
+<pre class="text"><code>models/lebt_no_offset_model_comparison/publication_metrics/</code></pre>
+<p>The best diagnostics-only configuration from the available staged
+runs is the plain MLP at 1M samples. The physics-regularized 900k model
+is preferred when covariance-valid beam-state predictions are
+required.</p>
+<h3 id="api-status">API Status</h3>
+<p>Maintained production APIs:</p>
+<div class="sourceCode" id="cb17"><pre
+class="sourceCode python"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> synapticTrack.simulation.no_offset_sobol_production <span class="im">import</span> (</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>    load_no_offset_sobol_config,</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>    run_preflight,</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>    run_generation,</span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>    make_generation_summary,</span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>    plan_batches,</span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>    audit_dataset_batches,</span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div>
+<p>Maintained shared modules:</p>
+<pre class="text"><code>synapticTrack.data.schema
+synapticTrack.data.batch_io
+synapticTrack.data.production_audit
+synapticTrack.sampling.sobol
+synapticTrack.sampling.latin_hypercube
+synapticTrack.simulation.batch_planning
+synapticTrack.simulation.generation_runtime
+synapticTrack.utils.parallel</code></pre>
+<p>Legacy/generic LEBT APIs in
+<code>synapticTrack.simulation.dataset_generator</code> are still
+supported for smoke datasets, dry runs, and development workflows. They
+should not be treated as the production no-offset Sobol pipeline.</p>
+<h3 id="cli-note">CLI note</h3>
+<p>The current <code>synapticTrack</code> CLI
+<code>lebt-production-*</code> commands target the legacy/generic LEBT
+production-config path. They are not the maintained no-offset Sobol
+production workflow. Use the production notebook or package APIs above
+for <code>lebt_production_no_offset_multitarget_sobol_v1</code>.</p>
+<h3 id="artifact-and-dataset-compatibility">Artifact And Dataset
+Compatibility</h3>
+<p>Each new training run writes <code>artifact_manifest.json</code> with
+format <code>training_run_artifacts_v2</code>. It records the stable
+paths for checkpoints, configuration, timing, plots, summaries, standard
+metrics, <code>state_physics_metrics_&lt;split&gt;.json</code>,
+compatibility <code>physics_metrics_&lt;split&gt;.json</code>, derived
+metrics, and covariance-validity metrics. Existing run directories
+without that file remain readable as an explicit legacy layout through
+<code>discover_run_artifacts()</code>.</p>
+<p>No-offset loaders detect the HDF5 format before reading
+layout-specific paths. Current no-offset batch and consolidated formats
+are normalized through <code>read_hdf5_dataset_compat()</code>. See
+<code>docs/hdf5_dataset_compatibility.md</code> for supported legacy
+LEBT and MEBT formats and the future opt-in migration path.</p>
+<h2 id="lebt-full-production-simulation-and-analysis-runner">LEBT Full
+Production Simulation and Analysis Runner</h2>
+<p>This document describes the one-file shell runner:</p>
+<div class="sourceCode" id="cb19"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a><span class="ex">scripts/run_lebt_full_production_and_analysis.sh</span></span></code></pre></div>
+<p>The script runs the maintained no-offset Sobol LEBT production
+workflow and then runs dataset analysis/validation. It is intended for
+long full-production runs on screen output should be controlled.</p>
+<h3 id="what-the-script-runs">What the Script Runs</h3>
+<p>The script is organized as a sequence of Python-backed execution
+stages. Each stage uses package APIs from <code>synapticTrack</code>;
+production logic is not duplicated inside notebooks or ad hoc
+scripts.</p>
+<table>
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+<col style="width: 25%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Stage</th>
+<th>Shell label</th>
+<th>Notebook section</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>0</td>
+<td><code>00_manifest</code></td>
+<td><code>00 Manifest</code></td>
+<td>Record run parameters, folders, Python/platform metadata, and local
+Git metadata.</td>
+</tr>
+<tr class="even">
+<td>1</td>
+<td><code>01_preflight</code></td>
+<td><code>01 Preflight</code></td>
+<td>Run the 240-sample preflight using the selected scan and runtime
+options.</td>
+</tr>
+<tr class="odd">
+<td>2</td>
+<td><code>02_production_stages</code></td>
+<td><code>02 Production Stages</code></td>
+<td>Run cumulative Sobol production stages, normally
+<code>100000,200000,300000,400000,500000</code>.</td>
+</tr>
+<tr class="even">
+<td>3</td>
+<td><code>03_consolidation</code></td>
+<td><code>03 Consolidation</code></td>
+<td>Write read-optimized consolidated HDF5 files for requested
+stages.</td>
+</tr>
+<tr class="odd">
+<td>4</td>
+<td><code>04_analysis_validation</code></td>
+<td><code>04 Analysis and Validation</code></td>
+<td>Compute final validation reports and write JSON/Markdown
+summaries.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="default-output-layout">Default Output Layout</h3>
+<p>Every execution uses a run-specific ID. If <code>--run-id</code> is
+not provided, the script uses a timestamp.</p>
+<pre class="text"><code>data/processed/full_production_runs/&lt;run-id&gt;/dataset/
+run.production/full_production_runs/&lt;run-id&gt;/work/
+run.production/full_production_runs/&lt;run-id&gt;/logs/</code></pre>
+<p>This keeps simulation outputs, temporary TRACK work files, and logs
+in separate folders. Override these with <code>--dataset-dir</code>,
+<code>--work-root</code>, and <code>--log-dir</code>.</p>
+<h3 id="parallel-execution">Parallel Execution</h3>
+<p>By default, the script computes the number of online CPU cores
+with:</p>
+<div class="sourceCode" id="cb21"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="ex">getconf</span> _NPROCESSORS_ONLN</span></code></pre></div>
+<p>It then uses 90 percent of those cores for production workers.
+Override this with either:</p>
+<div class="sourceCode" id="cb22"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="ex">--n-workers</span> 32</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a><span class="ex">--cpu-percent</span> 75</span></code></pre></div>
+<p><code>--n-workers</code> takes precedence over
+<code>--cpu-percent</code>.</p>
+<h3 id="verbose-and-quiet-modes">Verbose and Quiet Modes</h3>
+<p>Quiet mode is the default. It disables sample progress and TRACK
+verbosity on screen and redirects each Python stage into a run-specific
+log file. This is the large token consumption during full
+simulation.</p>
+<div class="sourceCode" id="cb23"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="ex">scripts/run_lebt_full_production_and_analysis.sh</span> <span class="at">--quiet</span></span></code></pre></div>
+<p>Verbose mode prints progress on screen and uses the requested TRACK
+verbosity:</p>
+<div class="sourceCode" id="cb24"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="ex">scripts/run_lebt_full_production_and_analysis.sh</span> <span class="at">--verbose</span> <span class="at">--track-verbose</span> 1</span></code></pre></div>
+<h3 id="full-production-example">Full Production Example</h3>
+<div class="sourceCode" id="cb25"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a><span class="ex">scripts/run_lebt_full_production_and_analysis.sh</span> <span class="dt">\</span></span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">--run-id</span> lebt_no_offset_500k_v1 <span class="dt">\</span></span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">--stages</span> 100000,200000,300000,400000,500000 <span class="dt">\</span></span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">--quiet</span></span></code></pre></div>
+<p>The script applies
+<code>configs/local/lebt_no_offset_sobol_local.yaml</code> by default if
+that file exists. Use it for machine-specific TRACK paths and source
+directories. To ignore local overrides:</p>
+<div class="sourceCode" id="cb26"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="ex">scripts/run_lebt_full_production_and_analysis.sh</span> <span class="at">--no-local-override</span></span></code></pre></div>
+<h3 id="test-sized-pipeline-check">Test-Sized Pipeline Check</h3>
+<p>Use <code>--dry-run</code> and <code>--allow-nonstandard</code> for a
+small local check that does not call TRACK:</p>
+<div class="sourceCode" id="cb27"><pre
+class="sourceCode bash"><code class="sourceCode bash"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="ex">scripts/run_lebt_full_production_and_analysis.sh</span> <span class="dt">\</span></span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">--run-id</span> dry_run_240 <span class="dt">\</span></span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">--stages</span> 240 <span class="dt">\</span></span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">--batch-size</span> 120 <span class="dt">\</span></span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">--n-workers</span> 2 <span class="dt">\</span></span>
+<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">--dry-run</span> <span class="dt">\</span></span>
+<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">--allow-nonstandard</span> <span class="dt">\</span></span>
+<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">--skip-preflight</span> <span class="dt">\</span></span>
+<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">--quiet</span></span></code></pre></div>
+<h3 id="analysis-outputs">Analysis Outputs</h3>
+<p>The analysis stage writes the maintained validation reports into the
+dataset directory:</p>
+<pre class="text"><code>validation_report.json
+validation_report.md
+final_analysis_summary.json</code></pre>
+<p>Generation also writes production metadata and audit files,
+including:</p>
+<pre class="text"><code>run_manifest.json
+generation_log.csv
+sobol_index.json
+audit_report.json
+validity_summary.json</code></pre>
+<h3 id="matching-notebook">Matching Notebook</h3>
+<p>The matching notebook is:</p>
+<pre class="text"><code>notebooks/20_lebt_full_production_simulation_and_analysis.ipynb</code></pre>
+<p>It uses the same parameter names, output folder layout, stage order,
+and package APIs as the shell runner. Use the shell script for
+unattended full production and the notebook for step-by-step inspection,
+review, and manuscript-supporting analysis notes.</p>
+<h3 id="repository-operation-reminder">Repository Operation
+Reminder</h3>
+<p>Do not run <code>git push</code> unless the repository owner
+explicitly requests it. Remote GitHub Actions should be checked only
+when explicitly requested for a CI/debugging task. Local GitHub Actions
+workflow files may be edited in the local repository when needed.</p>
+
+</main>
+</div>
+</body>
+</html>
