@@ -19,3 +19,17 @@ contents to the branch/directory selected in the repository Pages settings.
 
 Deployment is a repository operation. Push only when explicitly intended and
 verify the generated site locally before publishing.
+
+
+## Synchronizing the Pages Checkout
+
+After rebuilding the static site, synchronize it to the standalone Pages
+repository with:
+
+```bash
+./docs/sync_site.sh
+```
+
+The default target is the sibling `../synapticTrack.github.io/` checkout. Pass a
+target directory as the first argument to use a different local checkout. The
+script preserves the target repository's `.git/` and `.github/` directories.
